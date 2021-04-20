@@ -4,7 +4,7 @@ const {
   createStore,
   forward,
   sample,
-  createNode,
+  createNode
 } = require("effector");
 
 const app = createDomain("app", { name: "app", sid: "d-1" });
@@ -12,7 +12,7 @@ const app = createDomain("app", { name: "app", sid: "d-1" });
 const x100 = app.createEffect({
   name: "x100",
   sid: "f-1",
-  handler: async (p) => p * 100,
+  handler: async (p) => p * 100
 });
 const add = app.createEvent({ name: "add", sid: "e-1" });
 const sub = app.createEvent({ name: "sub", sid: "e-2" });
@@ -20,7 +20,7 @@ const reset = app.createEvent({ name: "reset", sid: "e-3" });
 const send = app.createEvent({ name: "send", sid: "e-4" });
 
 const another = createStore(0, { name: "another", sid: "s-1" })
-  .on([add, sub], () => 5)
+  .on([add, sub], () => 5);
 
 const counter = app
   .createStore(0, { name: "counter", sid: "s-2" })
@@ -37,7 +37,6 @@ counter.watch((n) => console.log("counter: ", n));
 add.watch(() => console.log("add"));
 sub.watch(() => console.log("subtract"));
 reset.watch(() => console.log("reset counter"));
-
 
 
 // console.log(app.graphite)
@@ -65,7 +64,7 @@ function visitNodes(node) {
       toVisit.push(node);
 
       if (node.family.type === "domain") domains.add(node);
-      if (node.family.type === 'crosslink') crosslinks.add(node);
+      if (node.family.type === "crosslink") crosslinks.add(node);
 
       if (node.family.type === "regular") {
         if (node.meta.unit === "event") events.add(node);
@@ -126,23 +125,34 @@ function printOperator(node, cb) {
 }
 
 function printUnit(node, cb) {
-  console.group(`[${node.meta.unit}]`, node.meta.name);
+  // console.group(`[${node.meta.unit}]`, node.meta.name);
+  console.group(node.meta.name);
   switch (node.meta.unit) {
-    case 'store': printStore(node); break;
-    default: cb(node);
+    case "store":
+      printStore(node);
+      break;
+    default:
+      cb(node);
   }
   console.groupEnd();
 }
 
 function printStore(node) {
-  const ons = node.family.links.filter(node => node.family.type === 'crosslink' && node.meta.op === 'on');
-  ons.forEach(printOn)
+  node.family.links.filter(node => node.family.type === "crosslink" && node.meta.op === "on")
+    .forEach(printOn);
+
+  node.family.links.filter(node => node.family.type === "crosslink" && node.meta.op === "watch")
+    .forEach(printWatch);
 }
 
 function printOn(linkNode) {
-  const storeNode = linkNode.family.links[0]
-  const eventNode = linkNode.family.owners.find(child => child.id !== storeNode.id)
-  console.log('on(', eventNode.meta.name, ',', linkNode.scope.fn.toString(), ")")
+  const storeNode = linkNode.family.links[0];
+  const eventNode = linkNode.family.owners.find(child => child.id !== storeNode.id);
+  console.log(`.on(${eventNode.meta.name}, ${linkNode.scope.fn.toString()})`);
+}
+
+function printWatch(linkNode) {
+  console.log(`.watch(${linkNode.scope.fn.toString()})`);
 }
 
 Array.from(stores).forEach(print);
