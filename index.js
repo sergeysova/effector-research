@@ -4,6 +4,7 @@ const {
   createStore,
   forward,
   sample,
+  createNode,
 } = require("effector");
 
 const app = createDomain("app", { name: "app", sid: "d-1" });
@@ -18,7 +19,8 @@ const sub = app.createEvent({ name: "sub", sid: "e-2" });
 const reset = app.createEvent({ name: "reset", sid: "e-3" });
 const send = app.createEvent({ name: "send", sid: "e-4" });
 
-const another = createStore(0, { name: "another", sid: "s-1" });
+const another = createStore(0, { name: "another", sid: "s-1" })
+  .on([add, sub], () => 5)
 
 const counter = app
   .createStore(0, { name: "counter", sid: "s-2" })
@@ -36,13 +38,23 @@ add.watch(() => console.log("add"));
 sub.watch(() => console.log("subtract"));
 reset.watch(() => console.log("reset counter"));
 
+
+
+// console.log(app.graphite)
+// console.log(send.graphite.family.owners)
+// console.log(counter.graphite.family.links)
+
+// process.exit(0)
+
 // =========================================================================== //
 
 const nodes = new Map();
+
 const domains = new Set();
 const events = new Set();
 const stores = new Set();
 const effects = new Set();
+const crosslinks = new Set();
 
 function visitNodes(node) {
   const toVisit = [];
@@ -53,6 +65,7 @@ function visitNodes(node) {
       toVisit.push(node);
 
       if (node.family.type === "domain") domains.add(node);
+      if (node.family.type === 'crosslink') crosslinks.add(node);
 
       if (node.family.type === "regular") {
         if (node.meta.unit === "event") events.add(node);
@@ -80,7 +93,8 @@ console.log(nodes.size);
 // console.log("[domains] >>", Array.from(domains));
 // console.log("[events] >>", Array.from(events));
 // console.log("[stores] >>", Array.from(stores));
-console.log("[effects] >>", Array.from(effects));
+// console.log("[effects] >>", Array.from(effects));
+// console.log("[crosslinks] >>", Array.from(crosslinks));
 
 const printed = new Map();
 
@@ -112,18 +126,29 @@ function printOperator(node, cb) {
 }
 
 function printUnit(node, cb) {
-  const ext = {
-    sid: node.meta.sid,
-    named: node.meta.named,
-  };
-  console.group(`[${node.meta.unit}]`, node.meta.name); //, ext);
-  cb(node);
+  console.group(`[${node.meta.unit}]`, node.meta.name);
+  switch (node.meta.unit) {
+    case 'store': printStore(node); break;
+    default: cb(node);
+  }
   console.groupEnd();
 }
 
+function printStore(node) {
+  const ons = node.family.links.filter(node => node.family.type === 'crosslink' && node.meta.op === 'on');
+  ons.forEach(printOn)
+}
+
+function printOn(linkNode) {
+  const storeNode = linkNode.family.links[0]
+  const eventNode = linkNode.family.owners.find(child => child.id !== storeNode.id)
+  console.log('on(', eventNode.meta.name, ',', linkNode.scope.fn.toString(), ")")
+}
+
 Array.from(stores).forEach(print);
-Array.from(events).forEach(print);
-Array.from(effects).forEach(print);
+// Array.from(events).forEach(print);
+// Array.from(effects).forEach(print);
+// Array.from(crosslinks).forEach(print);
 
 debugger;
 
